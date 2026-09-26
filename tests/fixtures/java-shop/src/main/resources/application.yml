@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://db/orders
+clients:
+  billing:
+    url: https://billing/api

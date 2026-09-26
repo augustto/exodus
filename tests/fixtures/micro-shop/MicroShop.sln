@@ -1,0 +1,11 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.Api", "Orders\src\Orders.Api\Orders.Api.csproj", "{A1000000-0000-0000-0000-000000000001}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.Application", "Orders\src\Orders.Application\Orders.Application.csproj", "{A1000000-0000-0000-0000-000000000002}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.Core", "Orders\src\Orders.Core\Orders.Core.csproj", "{A1000000-0000-0000-0000-000000000003}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Orders.Tests", "Orders\tests\Orders.Tests\Orders.Tests.csproj", "{A1000000-0000-0000-0000-000000000004}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Payments.Api", "..\Payments\src\Payments.Api\Payments.Api.csproj", "{A1000000-0000-0000-0000-000000000005}"
+EndProject

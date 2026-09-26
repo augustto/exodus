@@ -1,0 +1,15 @@
+# Local services for the Exodus RAG example (optional: without them, Exodus runs as before).
+#   docker compose up -d      start Qdrant (vector store); dashboard: http://localhost:6333/dashboard
+#   docker compose down       stop it (the indexed documentation stays in the qdrant-data volume)
+# Embeddings come from the local Ollama: `ollama pull bge-m3` once.
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    ports:
+      - "127.0.0.1:6333:6333"   # local REST API and dashboard only
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  qdrant-data:

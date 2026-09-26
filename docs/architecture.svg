@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1340" height="650" viewBox="0 0 1340 650" role="img" aria-label="Exodus pipeline: exodus-input, readers, build_graph, AI texts, graph.json, renderers, exodus-output">
+  <!-- Hand-written: edit the coordinates directly. Columns every 190 px, boxes 150 x 70. -->
+  <style>
+    text { fill: #e6edf3; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    .bg { fill: #0d1117; }
+    .box { fill: #161b22; stroke: #8b949e; stroke-width: 1.5; }
+    .ext { fill: #2b1d0e; stroke: #f0883e; stroke-width: 1.5; }
+    .data { fill: #0f2417; stroke: #3fb950; stroke-width: 1.5; }
+    .bnd { fill: none; stroke: #6e7681; stroke-width: 1.5; stroke-dasharray: 8 5; }
+    .edge { fill: none; stroke: #8b949e; stroke-width: 1.6; marker-end: url(#arrow); }
+    .dash { stroke-dasharray: 6 4; }
+    .t { font-size: 15px; font-weight: 600; text-anchor: middle; }
+    .s { font-size: 12px; fill: #9198a1; text-anchor: middle; }
+    .lbl { font-size: 12px; fill: #9198a1; }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1340" height="650"/>
+
+  <!-- legend -->
+  <line x1="20" y1="40" x2="60" y2="40" class="edge"/><text class="lbl" x="70" y="44">deterministic</text>
+  <line x1="180" y1="40" x2="220" y2="40" class="edge dash"/><text class="lbl" x="230" y="44">AI / optional</text>
+
+  <!-- boundary -->
+  <rect class="bnd" x="192" y="100" width="950" height="420" rx="10"/>
+  <text class="lbl" x="204" y="122" style="font-weight:600">Exodus  (uv run python -m exodus)</text>
+
+  <!-- input -->
+  <rect class="data" x="20" y="210" width="150" height="70" rx="8"/>
+  <text class="t" x="95" y="240">exodus-input/</text><text class="s" x="95" y="260">code · config · docs</text>
+
+  <!-- main flow -->
+  <rect class="box" x="210" y="210" width="150" height="70" rx="8"/>
+  <text class="t" x="285" y="240">Readers</text><text class="s" x="285" y="260">facts + evidence</text>
+  <rect class="box" x="400" y="210" width="150" height="70" rx="8"/>
+  <text class="t" x="475" y="240">build_graph</text><text class="s" x="475" y="260">links projects</text>
+  <rect class="box" x="590" y="210" width="150" height="70" rx="8"/>
+  <text class="t" x="665" y="240">AI texts</text><text class="s" x="665" y="260">use cases · refactor</text>
+  <path class="data" d="M780,222 a75,12 0 0,1 150,0 v56 a75,12 0 0,1 -150,0 z"/>
+  <path class="data" d="M780,222 a75,12 0 0,0 150,0" style="fill:none"/>
+  <text class="t" x="855" y="258">graph.json</text>
+  <rect class="box" x="970" y="210" width="150" height="70" rx="8"/>
+  <text class="t" x="1045" y="240">Renderers</text><text class="s" x="1045" y="260">draw.io · md · html</text>
+
+  <!-- supporting steps -->
+  <rect class="box" x="400" y="400" width="150" height="70" rx="8"/>
+  <text class="t" x="475" y="430">RAG</text><text class="s" x="475" y="450">legacy docs</text>
+  <rect class="box" x="970" y="400" width="150" height="70" rx="8"/>
+  <text class="t" x="1045" y="430">Domain rules</text><text class="s" x="1045" y="450">risks · 7R · C4 views</text>
+
+  <!-- output -->
+  <rect class="data" x="1170" y="190" width="160" height="110" rx="8"/>
+  <text class="t" x="1250" y="220">exodus-output/</text>
+  <text class="s" x="1250" y="242">report.html</text>
+  <text class="s" x="1250" y="260">*.md · graph.json</text>
+  <text class="s" x="1250" y="278">as-is/ · to-be/</text>
+
+  <!-- external services -->
+  <rect class="ext" x="620" y="560" width="150" height="60" rx="30"/>
+  <text class="t" x="695" y="587">Ollama</text><text class="s" x="695" y="605">local AI</text>
+  <path class="ext" d="M400,572 a75,12 0 0,1 150,0 v40 a75,12 0 0,1 -150,0 z"/>
+  <path class="ext" d="M400,572 a75,12 0 0,0 150,0" style="fill:none"/>
+  <text class="t" x="475" y="600">Qdrant</text><text class="s" x="475" y="617">optional</text>
+
+  <!-- edges -->
+  <path class="edge" d="M170,245 H208"/>
+  <path class="edge" d="M360,245 H398"/>
+  <path class="edge" d="M550,245 H588"/>
+  <path class="edge" d="M740,245 H778"/>
+  <path class="edge" d="M930,245 H968"/>
+  <path class="edge" d="M1120,245 H1168"/>
+  <path class="edge" d="M1045,400 V282"/>
+  <path class="edge dash" d="M285,280 V435 H398"/><text class="lbl" x="292" y="428">docs</text>
+  <path class="edge dash" d="M550,420 H610 V282"/>
+  <path class="edge dash" d="M720,560 V282"/>
+  <path class="edge dash" d="M650,560 V455 H552"/>
+  <path class="edge dash" d="M475,560 V472"/>
+</svg>

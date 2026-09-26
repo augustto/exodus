@@ -1,0 +1,14 @@
+modules:
+  orders:
+    path: orders
+    routes:
+      - upstream: /
+        method: GET
+        use: downstream
+        downstream: orders-service/orders
+      - upstream: /
+        method: POST
+        use: rabbitmq
+        config:
+          exchange: orders
+          routing_key: create_order

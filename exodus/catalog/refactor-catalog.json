@@ -1,0 +1,291 @@
+{
+  "version": "2026-09-25",
+  "purpose": "Closed list of AWS target options for the refactor (modern) path. The LLM chooses one option per piece and justifies it by the priorities, in order. The first option of each piece type is the default (the replatform target) when the LLM does not decide.",
+  "priorities": ["cost", "security", "performance"],
+  "sources": [
+    "https://docs.aws.amazon.com/prescriptive-guidance/latest/large-migration-guide/migration-strategies.html",
+    "https://docs.aws.amazon.com/decision-guides/latest/decision-guides/databases-on-aws-how-to-choose.html",
+    "https://aws.amazon.com/rds/aurora/dsql/"
+  ],
+  "retired_or_closed": {
+    "AWS App Runner": "closed to new customers on 2026-04-30; use Amazon ECS Express Mode",
+    "Amazon QLDB": "shut down on 2025-07-31; use Aurora PostgreSQL with pgAudit"
+  },
+  "piece_types": [
+    {
+      "id": "api-service",
+      "category": "compute",
+      "label": "Service / API (container with HTTP or SOAP entry points)",
+      "options": [
+        {"id": "ecs-fargate", "service": "Amazon ECS on AWS Fargate", "when": "steady traffic; default for containerized services", "cost": "pay per vCPU/GB-hour, no idle servers to manage; Compute Savings Plans apply", "security": "task-level IAM role, no hosts to patch", "performance": "no cold start; scales by tasks"},
+        {"id": "ecs-fargate-spot", "service": "Amazon ECS on AWS Fargate Spot", "when": "stateless service with 2+ tasks that tolerates interruptions (non-critical or behind retries)", "cost": "up to ~70% cheaper than Fargate", "security": "same as Fargate", "performance": "tasks can be reclaimed with 2 minutes notice"},
+        {"id": "ecs-express-mode", "service": "Amazon ECS Express Mode", "when": "simple web app or API that wants the least setup (successor of App Runner)", "cost": "Fargate pricing plus the load balancer it provisions", "security": "managed HTTPS endpoint", "performance": "same as Fargate"},
+        {"id": "lambda-api-gateway", "service": "Amazon API Gateway + AWS Lambda", "when": "low or intermittent traffic, short requests (< 29 s), stateless", "cost": "pay per request, scales to zero; expensive at high sustained load", "security": "per-function IAM; no servers", "performance": "cold starts (SnapStart for Java/.NET/Python); 15 min limit"},
+        {"id": "ec2-graviton-asg", "service": "Amazon EC2 Auto Scaling (Graviton, arm64)", "when": "high steady load where per-instance price wins, or needs OS access", "cost": "cheapest compute at sustained load with Savings Plans; Graviton ~20% cheaper than x86", "security": "you patch the OS", "performance": "full control; slower scaling"},
+        {"id": "eks", "service": "Amazon EKS (on Fargate or EC2)", "when": "many services (about 15+) and a team that already runs Kubernetes", "cost": "fixed control-plane fee per cluster plus compute", "security": "rich policy options, more to configure", "performance": "same as the compute underneath"},
+        {"id": "merge", "service": "Merge into another service (name it in merge_into)", "when": "tiny service that already moves in the same wave group (same database, or called only by the other one)", "cost": "one less task/deployment to pay and run", "security": "fewer network hops exposed", "performance": "in-process call instead of a network call"}
+      ]
+    },
+    {
+      "id": "worker",
+      "category": "compute",
+      "label": "Worker / queue consumer / background service",
+      "options": [
+        {"id": "ecs-fargate", "service": "Amazon ECS on AWS Fargate (long-running consumer)", "when": "constant message flow or long processing", "cost": "pays while running, even when idle", "security": "task IAM role", "performance": "no cold start"},
+        {"id": "lambda-sqs", "service": "AWS Lambda triggered by Amazon SQS", "when": "bursty or low volume, each message handled in < 15 min", "cost": "pay per invocation, zero when idle", "security": "per-function IAM", "performance": "scales with the queue; cold starts"},
+        {"id": "ecs-fargate-spot", "service": "Amazon ECS on AWS Fargate Spot", "when": "idempotent consumer that tolerates interruptions", "cost": "up to ~70% cheaper than Fargate", "security": "task IAM role", "performance": "can be reclaimed; messages return to the queue"},
+        {"id": "step-functions", "service": "AWS Step Functions (orchestrating Lambda/ECS steps)", "when": "the handling is a multi-step flow with retries/compensation", "cost": "pay per state transition (Express workflows are cheaper for high volume)", "security": "IAM per step", "performance": "built-in retries and parallelism"},
+        {"id": "merge", "service": "Merge into another service (name it in merge_into)", "when": "consumer that only serves one service in the same wave group", "cost": "one less deployment", "security": "fewer components", "performance": "shares the host process"}
+      ]
+    },
+    {
+      "id": "scheduled-job",
+      "category": "compute",
+      "label": "Scheduled job (Timer, IJob, @Scheduled, Celery beat, APScheduler)",
+      "options": [
+        {"id": "eventbridge-scheduler-ecs-task", "service": "Amazon EventBridge Scheduler → ECS task on Fargate", "when": "job longer than 15 min or that needs the existing container", "cost": "pay only while the task runs", "security": "task IAM role", "performance": "task start takes ~1 min"},
+        {"id": "eventbridge-scheduler-lambda", "service": "Amazon EventBridge Scheduler → AWS Lambda", "when": "short job (< 15 min)", "cost": "pay per run, nearly free for small jobs", "security": "per-function IAM", "performance": "starts in seconds"},
+        {"id": "aws-batch", "service": "AWS Batch (Fargate or Spot)", "when": "heavy batch processing, many jobs or long runs", "cost": "pay for compute used; Spot for big savings", "security": "job IAM role", "performance": "queues and parallelism managed"},
+        {"id": "step-functions", "service": "Amazon EventBridge Scheduler → AWS Step Functions", "when": "multi-step job with dependencies between steps", "cost": "pay per state transition", "security": "IAM per step", "performance": "retries and parallel branches built in"}
+      ]
+    },
+    {
+      "id": "soap-service",
+      "category": "compute",
+      "label": "SOAP service (WCF, JAX-WS, .asmx)",
+      "options": [
+        {"id": "corewcf-fargate", "service": "CoreWCF on .NET 8+ in Amazon ECS on Fargate", "when": "clients cannot change: keep the SOAP contract on Linux", "cost": "Linux containers instead of Windows licences", "security": "same contract, modern runtime", "performance": "same as Fargate"},
+        {"id": "rest-api", "service": "REST API (ASP.NET Core / Spring Boot) on Amazon ECS on Fargate", "when": "clients can move to REST/JSON", "cost": "Linux containers; simpler to operate", "security": "standard JWT/OAuth in front (API Gateway)", "performance": "lighter payloads"},
+        {"id": "grpc-alb", "service": "gRPC service behind an Application Load Balancer", "when": "internal service-to-service calls only", "cost": "Linux containers", "security": "TLS end to end", "performance": "binary protocol, lowest latency"}
+      ]
+    },
+    {
+      "id": "web-frontend",
+      "category": "compute",
+      "label": "Server-side web front end (Web Forms, MVC views, JSF, Django templates)",
+      "options": [
+        {"id": "ecs-fargate", "service": "Server-side app on Amazon ECS on Fargate (rewritten to a supported framework)", "when": "keep server-side rendering", "cost": "pays while running", "security": "task IAM role", "performance": "no cold start"},
+        {"id": "s3-cloudfront-spa", "service": "Amazon S3 + Amazon CloudFront (static SPA) calling the APIs", "when": "UI can be rewritten as a single-page app", "cost": "cents for static hosting; no servers", "security": "no server to attack; WAF on CloudFront", "performance": "served from the edge"},
+        {"id": "amplify-hosting", "service": "AWS Amplify Hosting", "when": "SPA or SSR framework (React/Next.js/Angular) with CI/CD built in", "cost": "pay per build minute and GB served", "security": "managed HTTPS", "performance": "edge delivery"},
+        {"id": "ec2-windows-iis", "service": "Amazon EC2 Windows (IIS)", "when": "Web Forms kept as is (it cannot leave Windows); rehost only", "cost": "Windows licence and instance hours", "security": "you patch the OS", "performance": "unchanged"}
+      ]
+    },
+    {
+      "id": "api-gateway",
+      "category": "edge",
+      "label": "API gateway (Ntrada, Ocelot, Zuul, Spring Cloud Gateway)",
+      "options": [
+        {"id": "keep-on-fargate", "service": "Keep the gateway on Amazon ECS on Fargate", "when": "custom logic in the gateway that managed gateways cannot do", "cost": "pays while running", "security": "you maintain it", "performance": "unchanged"},
+        {"id": "api-gateway-http", "service": "Amazon API Gateway (HTTP API)", "when": "routing and JWT auth only", "cost": "cheapest API Gateway type, pay per request", "security": "JWT authorizers, throttling", "performance": "low overhead"},
+        {"id": "api-gateway-rest", "service": "Amazon API Gateway (REST API)", "when": "needs usage plans, API keys, request validation, caching or WAF on the API", "cost": "~3x HTTP API per request", "security": "WAF, resource policies, request validation", "performance": "optional response cache"},
+        {"id": "alb", "service": "Application Load Balancer (path-based routing)", "when": "high volume internal or simple routing", "cost": "hourly + LCU; cheapest at high volume", "security": "OIDC auth, WAF", "performance": "no per-request API overhead"}
+      ]
+    },
+    {
+      "id": "identity-service",
+      "category": "security",
+      "label": "Own identity/auth service (IdentityServer, ASP.NET Identity, Spring Authorization Server)",
+      "options": [
+        {"id": "keep-on-fargate", "service": "Keep the identity service on Amazon ECS on Fargate", "when": "custom flows or user store that must stay", "cost": "pays while running", "security": "you maintain token security", "performance": "unchanged"},
+        {"id": "cognito", "service": "Amazon Cognito user pools", "when": "standard sign-up/sign-in, OAuth 2/OIDC for customers", "cost": "free tier then per monthly active user", "security": "managed MFA, advanced security features", "performance": "managed scaling"},
+        {"id": "iam-identity-center", "service": "AWS IAM Identity Center (workforce SSO)", "when": "internal users only (employees)", "cost": "no additional charge", "security": "central SSO with your IdP", "performance": "managed"}
+      ]
+    },
+    {
+      "id": "relational-database",
+      "category": "data",
+      "label": "Relational database (SQL Server, Oracle, MySQL, PostgreSQL, DB2)",
+      "options": [
+        {"id": "rds-same-engine", "service": "Amazon RDS (same engine)", "when": "keep engine and procedures; least change", "cost": "SQL Server/Oracle licences included in price (expensive)", "security": "encryption, IAM auth, automated patching", "performance": "provisioned instance"},
+        {"id": "rds-custom", "service": "Amazon RDS Custom (SQL Server or Oracle)", "when": "needs OS or database features RDS does not allow", "cost": "licence plus instance; more ops", "security": "you share OS responsibility", "performance": "provisioned instance"},
+        {"id": "aurora-postgresql-babelfish", "service": "Amazon Aurora PostgreSQL with Babelfish", "when": "SQL Server app: keep most T-SQL and the TDS protocol while dropping the SQL Server licence", "cost": "no SQL Server licence", "security": "Aurora security model", "performance": "check unsupported T-SQL features"},
+        {"id": "aurora-postgresql", "service": "Amazon Aurora PostgreSQL", "when": "engine change accepted; convert schema and procedures with AWS SCT/DMS", "cost": "no commercial licence; storage auto-scales", "security": "encryption, IAM auth", "performance": "up to 3x PostgreSQL throughput"},
+        {"id": "aurora-mysql", "service": "Amazon Aurora MySQL", "when": "MySQL today, or engine change toward MySQL", "cost": "no commercial licence", "security": "encryption, IAM auth", "performance": "up to 5x MySQL throughput"},
+        {"id": "aurora-serverless-v2", "service": "Amazon Aurora Serverless v2 (PostgreSQL or MySQL)", "when": "variable or low load; dev/test; can scale to zero capacity", "cost": "pay per ACU-second; zero when paused", "security": "same as Aurora", "performance": "scales in seconds; resume after pause takes seconds"},
+        {"id": "aurora-dsql", "service": "Amazon Aurora DSQL", "when": "needs multi-Region active-active or unlimited scale; PostgreSQL-compatible subset (check procedures, triggers, foreign keys)", "cost": "serverless, pay per use", "security": "IAM auth only", "performance": "distributed, strong consistency"},
+        {"id": "dynamodb", "service": "Amazon DynamoDB (on-demand)", "when": "tables accessed only by key (sessions, carts, lookups); rewrite data access", "cost": "pay per request, zero at rest besides storage", "security": "IAM per table/item", "performance": "single-digit ms at any scale"},
+        {"id": "ec2-self-managed", "service": "Self-managed on Amazon EC2", "when": "engine or version no managed service supports (e.g. DB2)", "cost": "licence plus instance; most ops", "security": "you patch everything", "performance": "full control"}
+      ]
+    },
+    {
+      "id": "shared-database",
+      "category": "data",
+      "label": "Database shared by several services (extra decision, on top of the engine)",
+      "options": [
+        {"id": "keep-shared", "service": "Keep one shared database", "when": "services are coupled by joins/transactions across tables", "cost": "one cluster to pay", "security": "every service can reach every table", "performance": "no cross-service data sync"},
+        {"id": "schema-per-service", "service": "One schema per service in the same cluster", "when": "tables have a clear owner; want isolation without extra clusters", "cost": "still one cluster", "security": "per-schema credentials", "performance": "same cluster"},
+        {"id": "database-per-service", "service": "One database per service", "when": "services must deploy and scale independently", "cost": "one database per service (use Serverless v2 to keep it low)", "security": "strongest isolation", "performance": "needs events/APIs to share data"}
+      ]
+    },
+    {
+      "id": "document-database",
+      "category": "data",
+      "label": "Document database (MongoDB, CouchDB, Couchbase)",
+      "options": [
+        {"id": "documentdb", "service": "Amazon DocumentDB (MongoDB compatible)", "when": "keep MongoDB drivers and queries", "cost": "instance-based", "security": "VPC only, encryption", "performance": "provisioned"},
+        {"id": "documentdb-elastic", "service": "Amazon DocumentDB Elastic Clusters", "when": "very large collections that need sharding", "cost": "per shard vCPU", "security": "same as DocumentDB", "performance": "horizontal scale"},
+        {"id": "dynamodb", "service": "Amazon DynamoDB (on-demand)", "when": "access by key; willing to rewrite data access", "cost": "pay per request", "security": "IAM per table/item", "performance": "single-digit ms at any scale"},
+        {"id": "mongodb-atlas", "service": "MongoDB Atlas on AWS (AWS Marketplace)", "when": "needs full MongoDB compatibility (repurchase)", "cost": "vendor pricing", "security": "vendor-managed", "performance": "native MongoDB"}
+      ]
+    },
+    {
+      "id": "cache",
+      "category": "data",
+      "label": "Cache / key-value store (Redis, Memcached)",
+      "options": [
+        {"id": "elasticache-valkey", "service": "Amazon ElastiCache for Valkey", "when": "default for Redis-compatible caches", "cost": "cheaper than ElastiCache for Redis OSS", "security": "encryption, auth", "performance": "sub-ms"},
+        {"id": "elasticache-serverless-valkey", "service": "Amazon ElastiCache Serverless for Valkey", "when": "unpredictable or small cache load", "cost": "pay per GB-hour and request; no nodes", "security": "same as ElastiCache", "performance": "scales automatically"},
+        {"id": "memorydb", "service": "Amazon MemoryDB", "when": "Redis used as the primary, durable database", "cost": "more than a cache", "security": "encryption, ACLs", "performance": "durable, sub-ms reads"},
+        {"id": "remove", "service": "Remove the cache", "when": "cache hides a slow call the new target no longer has", "cost": "one less service", "security": "less surface", "performance": "check latency without it"}
+      ]
+    },
+    {
+      "id": "wide-column-database",
+      "category": "data",
+      "label": "Wide-column database (Cassandra, ScyllaDB)",
+      "options": [
+        {"id": "keyspaces", "service": "Amazon Keyspaces (for Apache Cassandra)", "when": "keep CQL drivers", "cost": "serverless, pay per request or provisioned", "security": "IAM, encryption", "performance": "single-digit ms"},
+        {"id": "ec2-self-managed", "service": "Self-managed on Amazon EC2", "when": "features Keyspaces lacks", "cost": "instances plus ops", "security": "you patch", "performance": "full control"}
+      ]
+    },
+    {
+      "id": "search-engine",
+      "category": "data",
+      "label": "Search engine (Elasticsearch, Solr)",
+      "options": [
+        {"id": "opensearch-service", "service": "Amazon OpenSearch Service", "when": "steady search workload", "cost": "instance-based", "security": "fine-grained access control", "performance": "provisioned"},
+        {"id": "opensearch-serverless", "service": "Amazon OpenSearch Serverless", "when": "variable search or log analytics load", "cost": "pay per OCU; minimum capacity applies", "security": "IAM policies", "performance": "scales automatically"}
+      ]
+    },
+    {
+      "id": "graph-database",
+      "category": "data",
+      "label": "Graph database (Neo4j, JanusGraph)",
+      "options": [
+        {"id": "neptune", "service": "Amazon Neptune", "when": "steady graph workload", "cost": "instance-based", "security": "IAM auth, encryption", "performance": "provisioned"},
+        {"id": "neptune-serverless", "service": "Amazon Neptune Serverless", "when": "variable graph workload", "cost": "pay per capacity used", "security": "same as Neptune", "performance": "scales automatically"}
+      ]
+    },
+    {
+      "id": "time-series-database",
+      "category": "data",
+      "label": "Time-series database (InfluxDB)",
+      "options": [
+        {"id": "timestream-influxdb", "service": "Amazon Timestream for InfluxDB", "when": "keep InfluxDB APIs", "cost": "instance-based", "security": "encryption", "performance": "provisioned"},
+        {"id": "cloudwatch-metrics", "service": "Amazon CloudWatch Metrics", "when": "it only stores application metrics", "cost": "pay per metric", "security": "IAM", "performance": "managed"}
+      ]
+    },
+    {
+      "id": "file-storage",
+      "category": "data",
+      "label": "Files (shares, local disk, uploads)",
+      "options": [
+        {"id": "s3", "service": "Amazon S3", "when": "objects/uploads; code can use the S3 API", "cost": "cheapest per GB; tiers and lifecycle rules", "security": "bucket policies, encryption, block public access", "performance": "high throughput"},
+        {"id": "efs", "service": "Amazon EFS", "when": "Linux apps that need a shared POSIX file system", "cost": "per GB used; infrequent-access tier", "security": "VPC, IAM", "performance": "shared, elastic"},
+        {"id": "fsx-windows", "service": "Amazon FSx for Windows File Server", "when": ".NET/Windows apps using SMB shares", "cost": "per GB and throughput", "security": "Active Directory integration", "performance": "SMB native"}
+      ]
+    },
+    {
+      "id": "message-broker",
+      "category": "integration",
+      "label": "Message broker with pub/sub (RabbitMQ, ActiveMQ/JMS, Azure Service Bus)",
+      "options": [
+        {"id": "amazon-mq", "service": "Amazon MQ (RabbitMQ or ActiveMQ)", "when": "keep the protocol and client libraries", "cost": "broker instance hours even when idle", "security": "VPC, encryption", "performance": "provisioned broker"},
+        {"id": "sns-sqs", "service": "Amazon SNS + Amazon SQS (fan-out)", "when": "events with several subscribers; rewrite publish/subscribe calls", "cost": "pay per request, zero when idle", "security": "IAM per topic/queue", "performance": "virtually unlimited"},
+        {"id": "eventbridge-sqs", "service": "Amazon EventBridge + Amazon SQS", "when": "many event types routed by content; cross-account or SaaS events", "cost": "pay per event", "security": "IAM, resource policies", "performance": "higher latency than SNS"},
+        {"id": "sqs", "service": "Amazon SQS only", "when": "commands to a single consumer (point to point)", "cost": "pay per request", "security": "IAM per queue", "performance": "virtually unlimited"}
+      ]
+    },
+    {
+      "id": "local-queue",
+      "category": "integration",
+      "label": "Point-to-point queue (MSMQ, JMS queue)",
+      "options": [
+        {"id": "sqs", "service": "Amazon SQS (standard)", "when": "at-least-once delivery is fine", "cost": "pay per request", "security": "IAM per queue", "performance": "virtually unlimited"},
+        {"id": "sqs-fifo", "service": "Amazon SQS FIFO", "when": "order or exactly-once processing matters", "cost": "slightly higher per request", "security": "IAM per queue", "performance": "throughput limits per message group"},
+        {"id": "amazon-mq", "service": "Amazon MQ", "when": "JMS semantics must be kept", "cost": "broker instance hours", "security": "VPC", "performance": "provisioned broker"}
+      ]
+    },
+    {
+      "id": "event-streaming",
+      "category": "integration",
+      "label": "Event streaming (Kafka, Kinesis)",
+      "options": [
+        {"id": "msk", "service": "Amazon MSK (provisioned, Express brokers)", "when": "steady Kafka workload, keep Kafka clients", "cost": "broker hours", "security": "IAM auth, TLS", "performance": "high throughput"},
+        {"id": "msk-serverless", "service": "Amazon MSK Serverless", "when": "variable Kafka workload", "cost": "pay per cluster-hour and data", "security": "IAM auth", "performance": "scales automatically"},
+        {"id": "kinesis-data-streams", "service": "Amazon Kinesis Data Streams (on-demand)", "when": "willing to leave Kafka clients", "cost": "pay per stream-hour and data", "security": "IAM", "performance": "managed shards"}
+      ]
+    },
+    {
+      "id": "service-discovery",
+      "category": "platform",
+      "label": "Service discovery (Consul, Eureka)",
+      "options": [
+        {"id": "cloud-map", "service": "AWS Cloud Map", "when": "services outside ECS also need discovery", "cost": "per registered instance and query", "security": "IAM", "performance": "DNS/API lookups"},
+        {"id": "ecs-service-connect", "service": "Amazon ECS Service Connect (discovery removed from the code)", "when": "all services run on ECS", "cost": "no extra charge", "security": "TLS between services", "performance": "client-side load balancing, retries"}
+      ]
+    },
+    {
+      "id": "load-balancer",
+      "category": "platform",
+      "label": "Load balancer / reverse proxy (Fabio, Nginx, HAProxy)",
+      "options": [
+        {"id": "alb", "service": "Application Load Balancer", "when": "HTTP/HTTPS routing", "cost": "hourly + LCU", "security": "TLS, WAF, OIDC auth", "performance": "layer 7"},
+        {"id": "nlb", "service": "Network Load Balancer", "when": "TCP/UDP or static IPs", "cost": "hourly + NLCU", "security": "TLS", "performance": "layer 4, lowest latency"}
+      ]
+    },
+    {
+      "id": "secrets",
+      "category": "security",
+      "label": "Secrets (Vault, secrets in configuration files)",
+      "options": [
+        {"id": "secrets-manager", "service": "AWS Secrets Manager", "when": "database credentials and keys that must rotate", "cost": "per secret per month plus API calls", "security": "automatic rotation, audit", "performance": "cache in the client"},
+        {"id": "ssm-parameter-store", "service": "AWS Systems Manager Parameter Store (SecureString)", "when": "static secrets and settings", "cost": "standard parameters are free", "security": "KMS encryption, no built-in rotation", "performance": "throughput limits on standard tier"}
+      ]
+    },
+    {
+      "id": "configuration",
+      "category": "platform",
+      "label": "Central configuration (Consul KV, Spring Cloud Config)",
+      "options": [
+        {"id": "ssm-parameter-store", "service": "AWS Systems Manager Parameter Store", "when": "simple key/value settings", "cost": "standard parameters are free", "security": "IAM, KMS", "performance": "cache in the client"},
+        {"id": "appconfig", "service": "AWS AppConfig", "when": "feature flags or validated, gradual config rollout", "cost": "pay per config request", "security": "IAM, validators", "performance": "local agent cache"}
+      ]
+    },
+    {
+      "id": "logging",
+      "category": "observability",
+      "label": "Centralized logs (Seq, ELK, Graylog)",
+      "options": [
+        {"id": "cloudwatch-logs", "service": "Amazon CloudWatch Logs", "when": "default", "cost": "per GB ingested and stored; infrequent-access class is cheaper", "security": "IAM, KMS", "performance": "Logs Insights queries"},
+        {"id": "opensearch-service", "service": "Amazon OpenSearch Service", "when": "full-text log search and dashboards like Kibana", "cost": "instances", "security": "fine-grained access", "performance": "fast search"}
+      ]
+    },
+    {
+      "id": "tracing",
+      "category": "observability",
+      "label": "Distributed tracing (Jaeger, Zipkin)",
+      "options": [
+        {"id": "xray-otel", "service": "AWS X-Ray via OpenTelemetry (ADOT)", "when": "default", "cost": "per trace recorded and scanned", "security": "IAM", "performance": "sampling"},
+        {"id": "application-signals", "service": "Amazon CloudWatch Application Signals", "when": "wants SLOs and service maps out of the box", "cost": "per signal", "security": "IAM", "performance": "managed"}
+      ]
+    },
+    {
+      "id": "metrics",
+      "category": "observability",
+      "label": "Metrics and dashboards (Prometheus, InfluxDB, Grafana)",
+      "options": [
+        {"id": "cloudwatch-metrics", "service": "Amazon CloudWatch Metrics and dashboards", "when": "default", "cost": "per custom metric", "security": "IAM", "performance": "managed"},
+        {"id": "managed-prometheus", "service": "Amazon Managed Service for Prometheus", "when": "keep PromQL, exporters and alert rules", "cost": "per sample ingested and stored", "security": "IAM", "performance": "managed"},
+        {"id": "managed-grafana", "service": "Amazon Managed Grafana", "when": "keep existing Grafana dashboards", "cost": "per active user", "security": "SSO", "performance": "managed"}
+      ]
+    }
+  ],
+  "cross_cutting": [
+    {"id": "graviton-arm64", "applies_to": "containers on .NET 8+, Java or Python", "suggestion": "run on Graviton (arm64)", "cost": "~20% cheaper compute", "security": "none", "performance": "often equal or better"},
+    {"id": "savings-plans", "applies_to": "steady compute and databases", "suggestion": "Compute Savings Plans / Database Savings Plans after the load is known", "cost": "up to ~50-70% off on-demand", "security": "none", "performance": "none"},
+    {"id": "waf-public-entry", "applies_to": "public HTTP entry points", "suggestion": "AWS WAF on CloudFront/API Gateway/ALB", "cost": "per rule and request", "security": "blocks common web attacks", "performance": "negligible"},
+    {"id": "secrets-out-of-config", "applies_to": "secrets found in configuration (risks.md)", "suggestion": "move them to Secrets Manager or Parameter Store", "cost": "low", "security": "removes credentials from code and images", "performance": "none"},
+    {"id": "private-data-tier", "applies_to": "databases, caches and brokers", "suggestion": "no public access; reachable only from the application", "cost": "none", "security": "smaller attack surface", "performance": "none"}
+  ]
+}
